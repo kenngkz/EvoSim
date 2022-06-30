@@ -1,5 +1,6 @@
 import Box2D as b2d
-from Box2D.examples.framework import Framework, main
+from custom_framework import CustomFramework as Framework
+from custom_framework import main
 
 class Hello(Framework):
     name = "HelloWorld"
