@@ -2,9 +2,8 @@
 
 '''
 
-import numpy
-
-SMALL = 100
+import numpy as np
+import random
 
 '''
 obs: 32 vision inputs, ? internal inputs
@@ -25,9 +24,21 @@ brain: map inputs to 3 actions: forward, left, right
 
 class Podd:
 
+    INIT_ENERGY = 100
+    FOOD_ENERGY = 10
+    ENERGY_CONSUMPTION_MOVING = 1  # energy consumed per second to move
+    ENERGY_CONSUMPTION_IDLE = 0.1  # energy consumed per second while idle
+
     def __init__(self, genome):
+        self.genome = genome
+        self._parse_genome()
+        self.previous_action = np.zeros(3, dtype=np.float32)
+        self.energy = self.INIT_ENERGY
+
+    def _parse_genome(self):
+        self.attr = {"size":self.genome["size"], "strength":self.genome["strength"]}
         self.brain = None
         
-
-    def take_action(self, obs):
-        pass
+    def choose_action(self, obs):
+        self.previous_action += np.array([(random.random()-0.5)/10 for _ in range(3)])
+        return [i>0 for i in self.previous_action]

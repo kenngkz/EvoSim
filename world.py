@@ -3,10 +3,14 @@ import random
 
 from custom_framework import CustomFramework as Framework
 from custom_framework import main, Keys
+from podd import Podd
 
 MOVEDIR_FRONT = "forward"
 MOVEDIR_LEFT = "counter-clockwise"
 MOVEDIR_RIGHT = "clockwise"
+ENABLE_BORDER = True
+
+test_genome = {"size":1, "strength":10}
 
 class SimWorld(Framework):
     name = "Simulation world"
@@ -14,7 +18,7 @@ class SimWorld(Framework):
 
     # food
     SPAWN_FOOD_INTERVAL = 60  # number of frames/steps
-    SPAWN_FOOD_BOX = 30*10
+    SPAWN_FOOD_BOX = 40*10
     INIT_FOOD = 100
 
     # timer
@@ -24,8 +28,9 @@ class SimWorld(Framework):
     TURN_SCALE = 0.5  # ratio of turning force to forward force
 
     # TEST
-    TEST_SCALE = 1
-    TEST_STR = 10  # range [1, 50]
+    TEST_SCALE = 1  # range [0.5, 2]
+    TEST_STR = 7  # range [1, 50]
+    TEST_DENSITY = 1
 
     def __init__(self):
         super(SimWorld, self).__init__()
@@ -37,11 +42,21 @@ class SimWorld(Framework):
         for _ in range(self.INIT_FOOD):
             self.add_food()
 
-        self.objects = {}
+        self.podds = {}
         self.next_id = 1
 
+        if ENABLE_BORDER:
+            self.border = self.world.CreateStaticBody(
+            shapes=[b2d.b2EdgeShape(vertices=[(self.SPAWN_FOOD_BOX/10, self.SPAWN_FOOD_BOX/10), (-self.SPAWN_FOOD_BOX/10, self.SPAWN_FOOD_BOX/10)]),
+                    b2d.b2EdgeShape(vertices=[(-self.SPAWN_FOOD_BOX/10, self.SPAWN_FOOD_BOX/10), (-self.SPAWN_FOOD_BOX/10, -self.SPAWN_FOOD_BOX/10)]),
+                    b2d.b2EdgeShape(vertices=[(-self.SPAWN_FOOD_BOX/10, -self.SPAWN_FOOD_BOX/10), (self.SPAWN_FOOD_BOX/10, -self.SPAWN_FOOD_BOX/10)]),
+                    b2d.b2EdgeShape(vertices=[(self.SPAWN_FOOD_BOX/10, -self.SPAWN_FOOD_BOX/10), (self.SPAWN_FOOD_BOX/10, self.SPAWN_FOOD_BOX/10)]),
+                    ])
+
         # test
-        self.add_obj(self.TEST_SCALE, (0, 0), 1)
+        for i in range(10):
+            self.add_podd(test_genome)
+
     
     def Step(self, settings):
         self.FRAME_COUNTER += 1
@@ -51,13 +66,22 @@ class SimWorld(Framework):
             self.spawn_food_counter = 0
             self.add_food()
         self.display_food()
+
         # run physics
         super(SimWorld, self).Step(settings)
+
         # check for food overlay
-        for id, obj in self.objects.items():
+        for id, obj in self.podds.items():
             hits = self.is_touching_food(id, obj[0])
             for hit in hits:
                 self.food.remove(hit)
+
+        # podd movements
+        for fixture, podd in self.podds.values():
+            move_actions = podd.choose_action(None)
+            for direction, applyforce in zip([MOVEDIR_FRONT, MOVEDIR_LEFT, MOVEDIR_RIGHT], move_actions):
+                if applyforce:
+                    self.move_obj(fixture, direction, podd.attr["strength"])
 
     def add_food(self, p=None):
         if p:
@@ -81,11 +105,12 @@ class SimWorld(Framework):
         for p in self.food:
             self.renderer.DrawSolidCircle(self.renderer.to_screen(p), 0.25, (0, 0), b2d.b2Color((0, 1.0, 0)))
 
-    def add_obj(self, scale, position, density):  # scale range [0.5, 2]
+    def add_podd(self, genome, position=(0, 0)):
+        scale = genome["size"]
         shape = b2d.b2PolygonShape(vertices=[(0, 0), (-scale, -scale), (scale, -scale)])
         body = self.world.CreateDynamicBody(position=position, angularDamping=5, linearDamping=0.1)
-        main_fixture = body.CreateFixture(shape=shape, density=density, friction=0.3)
-        self.objects[self.next_id] = (main_fixture, None)
+        main_fixture = body.CreateFixture(shape=shape, density=self.TEST_DENSITY, friction=0.3)
+        self.podds[self.next_id] = (main_fixture, Podd(genome))
         self.next_id += 1
 
     def move_obj(self, fixture, movement, strength):
@@ -99,7 +124,6 @@ class SimWorld(Framework):
     def Keyboard(self, key):
         if len(self.objects) == 0:
             return
-
         if key == Keys.K_w:
             self.move_obj(self.objects[1][0], MOVEDIR_FRONT, self.TEST_STR)
         elif key == Keys.K_a:
