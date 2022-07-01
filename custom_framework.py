@@ -208,7 +208,7 @@ class CustomFramework(FrameworkBase):
 
     def __reset(self):
         # Screen/rendering-related
-        self._viewZoom = 10.0
+        self._viewZoom = 7.0
         self._viewCenter = None
         self._viewOffset = None
         self.screenSize = None
@@ -261,7 +261,7 @@ class CustomFramework(FrameworkBase):
             container.add(self.gui_table, 0, 0)
             self.gui_app.init(container)
 
-        self.viewCenter = (0, 20.0)
+        self.viewCenter = (0, 0.0)
         self.groundbody = self.world.CreateBody()
 
     def setCenter(self, value):

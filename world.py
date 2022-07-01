@@ -14,8 +14,8 @@ class SimWorld(Framework):
 
     # food
     SPAWN_FOOD_INTERVAL = 60  # number of frames/steps
-    SPAWN_FOOD_BOX = 20*10
-    INIT_FOOD = 10
+    SPAWN_FOOD_BOX = 30*10
+    INIT_FOOD = 100
 
     # timer
     FRAME_COUNTER = 0
@@ -24,8 +24,8 @@ class SimWorld(Framework):
     TURN_SCALE = 0.5  # ratio of turning force to forward force
 
     # TEST
-    TEST_SCALE = 2
-    TEST_STR = 50
+    TEST_SCALE = 1
+    TEST_STR = 10  # range [1, 50]
 
     def __init__(self):
         super(SimWorld, self).__init__()
@@ -37,10 +37,11 @@ class SimWorld(Framework):
         for _ in range(self.INIT_FOOD):
             self.add_food()
 
-        self.objects = []
+        self.objects = {}
+        self.next_id = 1
 
+        # test
         self.add_obj(self.TEST_SCALE, (0, 0), 1)
-        print(self.objects[0][1])
     
     def Step(self, settings):
         self.FRAME_COUNTER += 1
@@ -53,8 +54,8 @@ class SimWorld(Framework):
         # run physics
         super(SimWorld, self).Step(settings)
         # check for food overlay
-        for obj in self.objects:
-            hits = self.is_touching_food(obj[0], obj[1])
+        for id, obj in self.objects.items():
+            hits = self.is_touching_food(id, obj[0])
             for hit in hits:
                 self.food.remove(hit)
 
@@ -83,8 +84,9 @@ class SimWorld(Framework):
     def add_obj(self, scale, position, density):  # scale range [0.5, 2]
         shape = b2d.b2PolygonShape(vertices=[(0, 0), (-scale, -scale), (scale, -scale)])
         body = self.world.CreateDynamicBody(position=position, angularDamping=5, linearDamping=0.1)
-        fixture = body.CreateFixture(shape=shape, density=density, friction=0.3)
-        self.objects.append((random.randint(1, 10000), fixture))
+        main_fixture = body.CreateFixture(shape=shape, density=density, friction=0.3)
+        self.objects[self.next_id] = (main_fixture, None)
+        self.next_id += 1
 
     def move_obj(self, fixture, movement, strength):
         if movement == MOVEDIR_FRONT:
@@ -99,11 +101,11 @@ class SimWorld(Framework):
             return
 
         if key == Keys.K_w:
-            self.move_obj(self.objects[0][1], MOVEDIR_FRONT, self.TEST_STR)
+            self.move_obj(self.objects[1][0], MOVEDIR_FRONT, self.TEST_STR)
         elif key == Keys.K_a:
-            self.move_obj(self.objects[0][1], MOVEDIR_LEFT, self.TEST_STR)
+            self.move_obj(self.objects[1][0], MOVEDIR_LEFT, self.TEST_STR)
         elif key == Keys.K_d:
-            self.move_obj(self.objects[0][1], MOVEDIR_RIGHT, self.TEST_STR)
+            self.move_obj(self.objects[1][0], MOVEDIR_RIGHT, self.TEST_STR)
 
 if __name__ == "__main__":
     main(SimWorld)

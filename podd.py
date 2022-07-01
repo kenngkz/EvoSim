@@ -13,11 +13,13 @@ actions: turn left, turn right, move forward, move backward --> applied simultan
 
 # TODO: what does the genome look like?
 '''
-mapping for gene value to node, alphanumerical, "." is seperation value
-start with dict as genome
+start with dict as genome?
 genome: {
     "size": , "strength", "vision_spacing", "vision_field", "brain":["i1-o1":10, "i2-o1":-10]
 }
+
+attributes: size, strength
+brain: map inputs to 3 actions: forward, left, right
 '''
 
 
