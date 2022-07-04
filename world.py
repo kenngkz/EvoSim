@@ -75,6 +75,7 @@ class SimWorld(Framework):
             hits = self.is_touching_food(id, obj[0])
             for hit in hits:
                 self.food.remove(hit)
+                obj[1].energy += obj[1].FOOD_ENERGY
 
         # podd movements
         for fixture, podd in self.podds.values():
@@ -82,6 +83,12 @@ class SimWorld(Framework):
             for direction, applyforce in zip([MOVEDIR_FRONT, MOVEDIR_LEFT, MOVEDIR_RIGHT], move_actions):
                 if applyforce:
                     self.move_obj(fixture, direction, podd.attr["strength"])
+                    podd.energy -= podd.ENERGY_CONSUMPTION_MOVING/60  # consume energy to move
+            podd.energy -= podd.ENERGY_CONSUMPTION_LIVING
+
+            # TODO: kill podd if no energy left
+            if podd.energy <= 0:
+                pass
 
     def add_food(self, p=None):
         if p:
@@ -121,15 +128,15 @@ class SimWorld(Framework):
         if movement == MOVEDIR_RIGHT:
             fixture.body.ApplyTorque(-self.TURN_SCALE*strength, wake=True)
 
-    def Keyboard(self, key):
-        if len(self.objects) == 0:
-            return
-        if key == Keys.K_w:
-            self.move_obj(self.objects[1][0], MOVEDIR_FRONT, self.TEST_STR)
-        elif key == Keys.K_a:
-            self.move_obj(self.objects[1][0], MOVEDIR_LEFT, self.TEST_STR)
-        elif key == Keys.K_d:
-            self.move_obj(self.objects[1][0], MOVEDIR_RIGHT, self.TEST_STR)
+    # def Keyboard(self, key):
+    #     if len(self.podds) == 0:
+    #         return
+    #     if key == Keys.K_w:
+    #         self.move_obj(self.objects[1][0], MOVEDIR_FRONT, self.TEST_STR)
+    #     elif key == Keys.K_a:
+    #         self.move_obj(self.objects[1][0], MOVEDIR_LEFT, self.TEST_STR)
+    #     elif key == Keys.K_d:
+    #         self.move_obj(self.objects[1][0], MOVEDIR_RIGHT, self.TEST_STR)
 
 if __name__ == "__main__":
     main(SimWorld)

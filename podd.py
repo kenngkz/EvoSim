@@ -27,7 +27,7 @@ class Podd:
     INIT_ENERGY = 100
     FOOD_ENERGY = 10
     ENERGY_CONSUMPTION_MOVING = 1  # energy consumed per second to move
-    ENERGY_CONSUMPTION_IDLE = 0.1  # energy consumed per second while idle
+    ENERGY_CONSUMPTION_LIVING = 0.1  # energy consumed per second to continue to live
 
     def __init__(self, genome):
         self.genome = genome
