@@ -1,2 +1,4 @@
 __pycache__/
 test.py
+.python-version
+.DS_Store

@@ -1,3 +1,7 @@
+'''
+
+'''
+
 import Box2D as b2d
 import random
 
@@ -17,9 +21,11 @@ class SimWorld(Framework):
     description = "Scroll/Z/X to zoom, Arrow keys to move screen, Esc to quit."
 
     # food
-    SPAWN_FOOD_INTERVAL = 60  # number of frames/steps
-    SPAWN_FOOD_BOX = 40*10
+    SPAWN_FOOD_INTERVAL = 30  # number of frames/steps
+    GRID = 10  # smaller -> food spawn further apart
+    SPAWN_FOOD_BOX = 40*GRID
     INIT_FOOD = 100
+    FOOD_ENERGY = 20  # can be genetically determined in the future
 
     # timer
     FRAME_COUNTER = 0
@@ -42,15 +48,15 @@ class SimWorld(Framework):
         for _ in range(self.INIT_FOOD):
             self.add_food()
 
-        self.podds = {}
-        self.next_id = 1
+        self.podds = {}  # {id : (fixture, Podd)}
+        self.next_id = 1  # podd id increments
 
         if ENABLE_BORDER:
             self.border = self.world.CreateStaticBody(
-            shapes=[b2d.b2EdgeShape(vertices=[(self.SPAWN_FOOD_BOX/10, self.SPAWN_FOOD_BOX/10), (-self.SPAWN_FOOD_BOX/10, self.SPAWN_FOOD_BOX/10)]),
-                    b2d.b2EdgeShape(vertices=[(-self.SPAWN_FOOD_BOX/10, self.SPAWN_FOOD_BOX/10), (-self.SPAWN_FOOD_BOX/10, -self.SPAWN_FOOD_BOX/10)]),
-                    b2d.b2EdgeShape(vertices=[(-self.SPAWN_FOOD_BOX/10, -self.SPAWN_FOOD_BOX/10), (self.SPAWN_FOOD_BOX/10, -self.SPAWN_FOOD_BOX/10)]),
-                    b2d.b2EdgeShape(vertices=[(self.SPAWN_FOOD_BOX/10, -self.SPAWN_FOOD_BOX/10), (self.SPAWN_FOOD_BOX/10, self.SPAWN_FOOD_BOX/10)]),
+            shapes=[b2d.b2EdgeShape(vertices=[(self.SPAWN_FOOD_BOX/self.GRID, self.SPAWN_FOOD_BOX/self.GRID), (-self.SPAWN_FOOD_BOX/self.GRID, self.SPAWN_FOOD_BOX/self.GRID)]),
+                    b2d.b2EdgeShape(vertices=[(-self.SPAWN_FOOD_BOX/self.GRID, self.SPAWN_FOOD_BOX/self.GRID), (-self.SPAWN_FOOD_BOX/self.GRID, -self.SPAWN_FOOD_BOX/self.GRID)]),
+                    b2d.b2EdgeShape(vertices=[(-self.SPAWN_FOOD_BOX/self.GRID, -self.SPAWN_FOOD_BOX/self.GRID), (self.SPAWN_FOOD_BOX/self.GRID, -self.SPAWN_FOOD_BOX/self.GRID)]),
+                    b2d.b2EdgeShape(vertices=[(self.SPAWN_FOOD_BOX/self.GRID, -self.SPAWN_FOOD_BOX/self.GRID), (self.SPAWN_FOOD_BOX/self.GRID, self.SPAWN_FOOD_BOX/self.GRID)]),
                     ])
 
         # test
@@ -75,9 +81,10 @@ class SimWorld(Framework):
             hits = self.is_touching_food(id, obj[0])
             for hit in hits:
                 self.food.remove(hit)
-                obj[1].energy += obj[1].FOOD_ENERGY
+                obj[1].energy += self.FOOD_ENERGY
 
-        # podd movements
+        # podd movements + energy tracking
+        dead_podds = []
         for fixture, podd in self.podds.values():
             move_actions = podd.choose_action(None)
             for direction, applyforce in zip([MOVEDIR_FRONT, MOVEDIR_LEFT, MOVEDIR_RIGHT], move_actions):
@@ -85,10 +92,12 @@ class SimWorld(Framework):
                     self.move_obj(fixture, direction, podd.attr["strength"])
                     podd.energy -= podd.ENERGY_CONSUMPTION_MOVING/60  # consume energy to move
             podd.energy -= podd.ENERGY_CONSUMPTION_LIVING
-
-            # TODO: kill podd if no energy left
             if podd.energy <= 0:
-                pass
+                dead_podds.append(podd.id)
+
+        # kill dead podds
+        for podd_id in dead_podds:
+            self.kill_podd(podd_id)
 
     def add_food(self, p=None):
         if p:
@@ -117,8 +126,13 @@ class SimWorld(Framework):
         shape = b2d.b2PolygonShape(vertices=[(0, 0), (-scale, -scale), (scale, -scale)])
         body = self.world.CreateDynamicBody(position=position, angularDamping=5, linearDamping=0.1)
         main_fixture = body.CreateFixture(shape=shape, density=self.TEST_DENSITY, friction=0.3)
-        self.podds[self.next_id] = (main_fixture, Podd(genome))
+        self.podds[self.next_id] = (main_fixture, Podd(genome, self.next_id))
         self.next_id += 1
+
+    def kill_podd(self, id):
+        self.world.DestroyBody(self.podds[id][0].body)
+        self.podds.pop(id, None)
+        print(f"Podd {id} killed")
 
     def move_obj(self, fixture, movement, strength):
         if movement == MOVEDIR_FRONT:
@@ -127,16 +141,6 @@ class SimWorld(Framework):
             fixture.body.ApplyTorque(self.TURN_SCALE*strength, wake=True)
         if movement == MOVEDIR_RIGHT:
             fixture.body.ApplyTorque(-self.TURN_SCALE*strength, wake=True)
-
-    # def Keyboard(self, key):
-    #     if len(self.podds) == 0:
-    #         return
-    #     if key == Keys.K_w:
-    #         self.move_obj(self.objects[1][0], MOVEDIR_FRONT, self.TEST_STR)
-    #     elif key == Keys.K_a:
-    #         self.move_obj(self.objects[1][0], MOVEDIR_LEFT, self.TEST_STR)
-    #     elif key == Keys.K_d:
-    #         self.move_obj(self.objects[1][0], MOVEDIR_RIGHT, self.TEST_STR)
 
 if __name__ == "__main__":
     main(SimWorld)

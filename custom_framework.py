@@ -18,6 +18,7 @@
 # misrepresented as being the original software.
 # 3. This notice may not be removed or altered from any source distribution.
 
+# ALTERED
 """
 Global Keys:
     F1     - toggle menu (can greatly improve fps)
