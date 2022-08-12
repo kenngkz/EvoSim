@@ -48,3 +48,8 @@ Podd object determines the action to take (turn, move forward, slow down), pass 
 6. Defense (density)
 7. Damage (?) - work in combination with strength
 8. Diet
+
+# Main issue
+How to design a brain that can deal with varying number of inputs?
+
+2 sides: Genome representation of brain | Execution of brain action
