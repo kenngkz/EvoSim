@@ -5,6 +5,8 @@
 import numpy as np
 import random
 
+from settings import PoddSettings as PS, BrainSettings as BS
+
 '''
 obs: 32 vision inputs, ? internal inputs
 actions: turn left, turn right, move forward, move backward --> applied simultaneously
@@ -32,21 +34,11 @@ class Podd:
     Represents a Podd: genome, brain, energy etc.
     '''
 
-    INIT_ENERGY = 100
-    ENERGY_CONSUMPTION_MOVING = 1  # energy consumed per second to move
-    ENERGY_CONSUMPTION_LIVING = 0.5  # energy consumed per second to continue to live
-
-    BIRTH_COST = 100
-    BIRTH_AGE = 20  # in seconds
-
-    MUTATION_RATE = 0.5
-    MUTATION_STR = 0.1
-
     def __init__(self, genome, id):
         self.id = id
         self.genome = genome
         self._parse_genome()
-        self.energy = self.INIT_ENERGY
+        self.energy = PS.init_energy
         self.age = 0  # number of seconds alive
         self.previous_action = np.array([0, 0, 0])
 
@@ -68,8 +60,8 @@ class Podd:
                 new["brain"] = self.brain.new_genome()
             else:
                 new[attr] = value
-                if random.random() < self.MUTATION_RATE:
-                    new[attr] *= random.normalvariate(1, self.MUTATION_STR)
+                if random.random() < PS.mut_rate:
+                    new[attr] *= random.normalvariate(1, PS.mut_var)
         return new
 
 ### BRAIN ###
@@ -102,24 +94,11 @@ class Node:
 
 class Brain:
 
-    # nodes
-    N_INPUTS = 6
-    N_OUTPUTS = 3
-    MAX_NODE = 9999
-
-    # mutation chance
-    CHANCE_NEW = 0.25  # chance at each new_genome of creating a new connection
-    CHANCE_DEL = 0.05  # chance of each existing connection of deleting itself
-    
-    # mutation strength: adjusting weights
-    MUT_VAR = 0.1
-    MIN_MUT_WEIGHT = 0.01
-
     def __init__(self, brain_genome):
         self.genome = brain_genome
         self.computations = {}
-        self.input_nodes = [f"i{i:04}" for i in range(self.N_INPUTS)]
-        self.output_nodes = [f"o{i:04}" for i in range(self.N_OUTPUTS)]
+        self.input_nodes = [f"i{i:04}" for i in range(BS.n_inputs)]
+        self.output_nodes = [f"o{i:04}" for i in range(BS.n_outputs)]
         ionodes = self.input_nodes + self.output_nodes
         self.nodelist = {node_id:Node(node_id, self) for node_id in ionodes}
         for node in self.nodelist.values():
@@ -136,26 +115,26 @@ class Brain:
 
     def compute(self, input_values):
         for i, val in enumerate(input_values):
-            self.computations["i" + str(i).zfill(len(str(self.MAX_NODE)))] = val
+            self.computations["i" + str(i).zfill(len(str(BS.max_node)))] = val
         output = np.array([self.nodelist[node_id].compute() for node_id in self.output_nodes])
         self.computations = {}
         return output
 
     def new_node_id(self):
-        if len(self.nodelist) >= self.MAX_NODE:
-            raise Exception(f"Too many nodes. nodelist too close to maximum capacity: {len(self.nodelist)}/{self.MAX_NODE}")
+        if len(self.nodelist) >= BS.max_node:
+            raise Exception(f"Too many nodes. nodelist too close to maximum capacity: {len(self.nodelist)}/{BS.max_node}")
         while True:
-            i = str(random.choice(range(self.MAX_NODE+1))).zfill(len(str(self.MAX_NODE)))
+            i = str(random.choice(range(BS.max_node+1))).zfill(len(str(BS.max_node)))
             if i not in self.nodelist:
                 return i
 
     def new_genome(self):
         new = {}
         for connection, weight in self.genome.items():
-            if random.random() > self.CHANCE_DEL:  # if not deleting
-                new[connection] = weight * random.normalvariate(1, self.MUT_VAR) if abs(weight) > self.MIN_MUT_WEIGHT else weight + self.MIN_MUT_WEIGHT * random.normalvariate(0, self.MUT_VAR)
+            if random.random() > BS.chance_del:  # if not deleting
+                new[connection] = weight * random.normalvariate(1, BS.mut_var) if abs(weight) > BS.min_mut_weight else weight + BS.min_mut_weight * random.normalvariate(0, BS.mut_var)
         # new connections
-        if random.random() < self.CHANCE_NEW:
+        if random.random() < BS.chance_new:
             nodes = list(self.nodelist.keys())
             nodes.append(self.new_node_id())
             from_node = random.choice(nodes)

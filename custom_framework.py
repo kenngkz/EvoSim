@@ -6,41 +6,7 @@ from Box2D import (b2Fixture, b2FixtureDef, b2Joint)
 from Box2D import (b2GetPointStates, b2QueryCallback, b2Random)
 from Box2D import (b2_addState, b2_dynamicBody, b2_epsilon, b2_persistState)
 
-class fwSettings(object):
-    # The default backend to use in (can be: pyglet, pygame, etc.)
-    backend = 'pygame'
-
-    # Physics options
-    hz = 30.0
-    velocityIterations = 4
-    positionIterations = 2
-    # Makes physics results more accurate (see Box2D wiki)
-    enableWarmStarting = True
-    enableContinuous = True     # Calculate time of impact
-    enableSubStepping = False
-
-    # Drawing
-    drawStats = True
-    drawShapes = True
-    drawJoints = False
-    drawCoreShapes = False
-    drawAABBs = False
-    drawOBBs = False
-    drawPairs = False
-    drawContactPoints = False
-    maxContactPoints = 100
-    drawContactNormals = False
-    drawFPS = True
-    drawMenu = True             # toggle by pressing F1
-    drawCOMs = False            # Centers of mass
-    pointSize = 2.0             # pixel radius for drawing points
-
-    # Miscellaneous testbed options
-    pause = False
-    singleStep = False
-    # run the test's initialization without graphics, and then quit (for
-    # testing)
-    onlyInit = False
+from settings import FrameworkSettings as FS
 
 class fwDestructionListener(b2DestructionListener):
     """
@@ -119,7 +85,7 @@ class FrameworkBase(b2ContactListener):
         self.world = None
         self.bomb = None
         self.mouseJoint = None
-        self.settings = fwSettings
+        self.settings = FS
         self.bombSpawning = False
         self.bombSpawnPoint = None
         self.mouseWorld = None
@@ -518,7 +484,7 @@ def main(test_class):
     """
     print("Loading %s..." % test_class.name)
     test = test_class()
-    if fwSettings.onlyInit:
+    if FS.onlyInit:
         return
     test.run()
 
@@ -706,7 +672,7 @@ class CustomFramework(FrameworkBase):
         super(CustomFramework, self).__init__()
 
         self.__reset()
-        if fwSettings.onlyInit:  # testing mode doesn't initialize pygame
+        if FS.onlyInit:  # testing mode doesn't initialize pygame
             return
 
         print('Initializing pygame framework...')
@@ -953,6 +919,6 @@ def main(test_class):
     """
     print("Loading %s..." % test_class.name)
     test = test_class()
-    if fwSettings.onlyInit:
+    if FS.onlyInit:
         return
     test.run()
