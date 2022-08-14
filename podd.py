@@ -27,8 +27,6 @@ attributes: size, strength
 brain: map inputs to 3 actions: forward, left, right
 '''
 
-GENOME_RANGE = {"size":[0.25, 3], "strength":[1, 50]}
-
 class Podd:
     '''
     Represents a Podd: genome, brain, energy etc.
@@ -36,7 +34,7 @@ class Podd:
 
     INIT_ENERGY = 100
     ENERGY_CONSUMPTION_MOVING = 1  # energy consumed per second to move
-    ENERGY_CONSUMPTION_LIVING = 0.1  # energy consumed per second to continue to live
+    ENERGY_CONSUMPTION_LIVING = 0.5  # energy consumed per second to continue to live
 
     BIRTH_COST = 100
     BIRTH_AGE = 20  # in seconds
@@ -50,67 +48,49 @@ class Podd:
         self._parse_genome()
         self.energy = self.INIT_ENERGY
         self.age = 0  # number of seconds alive
+        self.previous_action = np.array([0, 0, 0])
 
     def _parse_genome(self):
         self.attr = {"size":self.genome["size"], "strength":self.genome["strength"]}
-        self.previous_action = np.array(self.genome["brain"]["init_prev"], dtype=np.float32)
-        self.energy_brain = np.array(self.genome["brain"]["energy"], dtype=np.float32)
-        self.brain_random_scale = np.array(self.genome["brain"]["random_scale"], dtype=np.float32)
         self.birth_energy = self.genome["birth_energy"]
-        self.brain = None
+        self.brain = Brain(self.genome["brain"])
         
     def choose_action(self, obs):
-        self.previous_action += np.array([(random.random()-0.5) * self.brain_random_scale for _ in range(3)]) + 0.1 * self.energy * self.energy_brain
-        return [i>0 for i in self.previous_action]
+        obs = obs + [self.energy, *self.previous_action, random.random()-0.5, 1]
+        self.previous_action = self.brain.compute(obs)
+        return self.previous_action
 
-    def new_genome(self):
+
+    def new_genome(self):  # TODO: revamp this
         new = {}
         for attr, value in self.genome.items():
             if attr == "brain":
-                new[attr] = {}
-                for param, v in value.items():
-                    if isinstance(v, list):
-                        new[attr][param] = [i + random.normalvariate(1, self.MUTATION_STR*0.1) for i in v]
-                    elif isinstance(v, float):
-                        new[attr][param] = v + random.normalvariate(1, self.MUTATION_STR)*0.1
-                    else:
-                        raise Exception(f"Unhandled genome type in brain: {param} - {v}")
+                new["brain"] = self.brain.new_genome()
             else:
-                new_value = value * random.normalvariate(1, self.MUTATION_STR)
-                if attr in GENOME_RANGE:
-                    if new_value < GENOME_RANGE[attr][0] or new_value > GENOME_RANGE[attr][1] or random.random() < self.MUTATION_RATE:
-                        new[attr] = value
-                    else:
-                        new[attr] = new_value
-                else:
-                    new[attr] = new_value
+                new[attr] = value
+                if random.random() < self.MUTATION_RATE:
+                    new[attr] *= random.normalvariate(1, self.MUTATION_STR)
         return new
 
 ### BRAIN ###
 
-n_inputs = 4  # TODO: trim this section
-n_outputs = 3
-input_nodes = [f"i{i:04}" for i in range(1, n_inputs+1)]
-output_nodes = [f"o{i:04}" for i in range(1, n_outputs+1)]
-inputs = [56, 332, 4, 0.2]
-max_nodes = 9999
+
+
 
 ## for now just do non-learning neurons
 # {node_name-node_name: weight}
-brain_genome = {"i0001-o0001":1, "i0002-o0002":-1, "i0003-o0003":5, "i0004-4253":0.5, "4253-o0001":-0.5}
 
 def relu(x):
     return x if x>0 else 0
 activation = relu
 
 class Node:
-      # list of node ids, shared between all Nodes
 
     def __init__(self, id, brain, nodelist=None):
         self.id = id
         self.brain = brain
         self.connections = {}  # nodes that feed into this node
-        self.nodelist = nodelist if nodelist else {}
+        self.nodelist = nodelist if nodelist else {} # list of node ids, shared between all Nodes in a Brain
 
     def add_connection(self, node_id, weight):
         self.connections[node_id] = (self.nodelist[node_id], weight)
@@ -122,10 +102,25 @@ class Node:
 
 class Brain:
 
+    # nodes
+    N_INPUTS = 6
+    N_OUTPUTS = 3
+    MAX_NODE = 9999
+
+    # mutation chance
+    CHANCE_NEW = 0.25  # chance at each new_genome of creating a new connection
+    CHANCE_DEL = 0.05  # chance of each existing connection of deleting itself
+    
+    # mutation strength: adjusting weights
+    MUT_VAR = 0.1
+    MIN_MUT_WEIGHT = 0.01
+
     def __init__(self, brain_genome):
         self.genome = brain_genome
         self.computations = {}
-        ionodes = input_nodes + output_nodes
+        self.input_nodes = [f"i{i:04}" for i in range(self.N_INPUTS)]
+        self.output_nodes = [f"o{i:04}" for i in range(self.N_OUTPUTS)]
+        ionodes = self.input_nodes + self.output_nodes
         self.nodelist = {node_id:Node(node_id, self) for node_id in ionodes}
         for node in self.nodelist.values():
             node.nodelist = self.nodelist
@@ -141,17 +136,47 @@ class Brain:
 
     def compute(self, input_values):
         for i, val in enumerate(input_values):
-            self.computations[f"i{i:04}"] = val
-        output = [self.nodelist[node_id].compute() for node_id in output_nodes]
+            self.computations["i" + str(i).zfill(len(str(self.MAX_NODE)))] = val
+        output = np.array([self.nodelist[node_id].compute() for node_id in self.output_nodes])
         self.computations = {}
         return output
 
     def new_node_id(self):
-        if len(self.nodelist) >= max_nodes:
-            raise Exception(f"Too many nodes. nodelist too close to maximum capacity: {len(self.nodelist)}/{max_nodes}")
+        if len(self.nodelist) >= self.MAX_NODE:
+            raise Exception(f"Too many nodes. nodelist too close to maximum capacity: {len(self.nodelist)}/{self.MAX_NODE}")
         while True:
-            i = str(random.choice(range(max_nodes+1)))
+            i = str(random.choice(range(self.MAX_NODE+1))).zfill(len(str(self.MAX_NODE)))
             if i not in self.nodelist:
                 return i
 
-test = Brain(brain_genome)
+    def new_genome(self):
+        new = {}
+        for connection, weight in self.genome.items():
+            if random.random() > self.CHANCE_DEL:  # if not deleting
+                new[connection] = weight * random.normalvariate(1, self.MUT_VAR) if abs(weight) > self.MIN_MUT_WEIGHT else weight + self.MIN_MUT_WEIGHT * random.normalvariate(0, self.MUT_VAR)
+        # new connections
+        if random.random() < self.CHANCE_NEW:
+            nodes = list(self.nodelist.keys())
+            nodes.append(self.new_node_id())
+            from_node = random.choice(nodes)
+            nodes.remove(from_node)
+            new[f"{from_node}-{random.choice(nodes)}"] = random.normalvariate(0, 1)
+        return new
+
+
+def generate_brain_genomes(final_sample, generations=8, n_parents=50, n_children=20):
+    brain_genome = {}
+
+    pop = [Brain(brain_genome) for _ in range(n_parents)]
+    for _ in range(generations):
+        parents = random.sample(pop, 20)
+        children = []
+        for parent in parents:
+            children += [Brain(parent.new_genome()) for _ in range(n_children)]
+        pop = children
+    return [brain.genome for brain in random.sample(pop, final_sample)]
+
+
+
+#### MINIMUM ENERGY THAT INCREASES WITH AGE
+# can have podds that dont move continue to recieve energy passively? how to encourage movement? passive energy distributed among podds (and food?)

@@ -5,10 +5,11 @@
 import Box2D as b2d
 import random
 import os
+import logging
 
 from custom_framework import CustomFramework as Framework
 from custom_framework import main, Keys
-from podd import Podd
+from podd import Podd, generate_brain_genomes
 
 MOVEDIR_FRONT = "forward"
 MOVEDIR_LEFT = "counter-clockwise"
@@ -17,16 +18,20 @@ ENABLE_BORDER = True
 ROUNDED_CORNERS = False
 SEP = ";"  # delimiter for csv
 
-test_genome = {"size":1, "strength":10, "birth_energy":120, "brain":{"init_prev":[0, 0, 0], "energy":[0, 0, 0], "random_scale":0.1}}
+n_podds_init = 100
+sample_brains = generate_brain_genomes(100)
+test_genomes = []
+for _ in range(n_podds_init):
+    test_genomes.append({"size":1, "strength":1, "birth_energy":120, "brain":random.choice(sample_brains)})
 
 class SimWorld(Framework):
     name = "Simulation world"
     description = "Scroll/Z/X to zoom, Arrow keys to move screen, Esc to quit."
 
     # food
-    SPAWN_FOOD_INTERVAL = 30  # number of frames/steps
+    SPAWN_FOOD_INTERVAL = 0.5 * 60  # number of frames/steps
     GRID = 10  # smaller -> food spawn further apart
-    SPAWN_FOOD_BOX = 60*GRID
+    SPAWN_FOOD_BOX = 60 * GRID
     INIT_FOOD = 500
     FOOD_ENERGY = 20  # can be genetically determined in the future
 
@@ -37,8 +42,6 @@ class SimWorld(Framework):
     TURN_SCALE = 0.5  # ratio of turning force to forward force
 
     # TEST
-    TEST_SCALE = 1  # range [0.5, 2]
-    TEST_STR = 7  # range [1, 50]
     TEST_DENSITY = 1
 
     def __init__(self):
@@ -57,18 +60,25 @@ class SimWorld(Framework):
 
         if ENABLE_BORDER:
             c = self.SPAWN_FOOD_BOX/self.GRID
-            if ROUNDED_CORNERS:
+            if not ROUNDED_CORNERS:
                 self.border = self.world.CreateStaticBody(
-                    shapes=[
-                        b2d.b2EdgeShape(vertices=[(c , c), (-c, c)]), b2d.b2EdgeShape(vertices=[(-c, c), (-c, -c)]), b2d.b2EdgeShape(vertices=[(-c, -c), (c, -c)]), b2d.b2EdgeShape(vertices=[(c, -c), (c, c)]),
-                    ])
+                    fixtures = [
+                        b2d.b2FixtureDef(shape=b2d.b2EdgeShape(vertices=[(c , c), (-c, c)]), friction=0),
+                        b2d.b2FixtureDef(shape=b2d.b2EdgeShape(vertices=[(-c, c), (-c, -c)]), friction=0),
+                        b2d.b2FixtureDef(shape=b2d.b2EdgeShape(vertices=[(-c, -c), (c, -c)]), friction=0),
+                        b2d.b2FixtureDef(shape=b2d.b2EdgeShape(vertices=[(c, -c), (c, c)]), friction=0)
+                        ])
             else:
                 self.border = self.world.CreateStaticBody(
-                    shapes = [
-                        b2d.b2EdgeShape(vertices=[(c-1, c), (-c+1, c)]), b2d.b2EdgeShape(vertices=[(-c+1, c), (-c, c-1)]),
-                        b2d.b2EdgeShape(vertices=[(-c, c-1), (-c, -c+1)]), b2d.b2EdgeShape(vertices=[(-c, -c+1), (-c+1, -c)]),
-                        b2d.b2EdgeShape(vertices=[(-c+1, -c), (c-1, -c)]), b2d.b2EdgeShape(vertices=[(c-1, -c), (c, -c+1)]),
-                        b2d.b2EdgeShape(vertices=[(c, -c+1), (c, c-1)]), b2d.b2EdgeShape(vertices=[(c, c-1), (c-1, c)]),
+                    fixtures = [
+                        b2d.b2FixtureDef(shape=b2d.b2EdgeShape(vertices=[(c-1, c), (-c+1, c)]), friction=0),
+                        b2d.b2FixtureDef(shape=b2d.b2EdgeShape(vertices=[(-c+1, c), (-c, c-1)]), friction=0),
+                        b2d.b2FixtureDef(shape=b2d.b2EdgeShape(vertices=[(-c, c-1), (-c, -c+1)]), friction=0),
+                        b2d.b2FixtureDef(shape=b2d.b2EdgeShape(vertices=[(-c, -c+1), (-c+1, -c)]), friction=0),
+                        b2d.b2FixtureDef(shape=b2d.b2EdgeShape(vertices=[(-c+1, -c), (c-1, -c)]), friction=0),
+                        b2d.b2FixtureDef(shape=b2d.b2EdgeShape(vertices=[(c-1, -c), (c, -c+1)]), friction=0),
+                        b2d.b2FixtureDef(shape=b2d.b2EdgeShape(vertices=[(c, -c+1), (c, c-1)]), friction=0),
+                        b2d.b2FixtureDef(shape=b2d.b2EdgeShape(vertices=[(c, c-1), (c-1, c)]), friction=0),
                     ])
 
         # statistics
@@ -80,8 +90,8 @@ class SimWorld(Framework):
             f.write(f"id{SEP}parent{SEP}genome")
 
         # test
-        for i in range(15):
-            self.add_podd(test_genome)
+        for genome in test_genomes:
+            self.add_podd(genome, position=(random.randint(-self.SPAWN_FOOD_BOX, self.SPAWN_FOOD_BOX)/10, random.randint(-self.SPAWN_FOOD_BOX, self.SPAWN_FOOD_BOX)/10))
     
     def Step(self, settings):
         self.FRAME_COUNTER += 1
@@ -106,7 +116,7 @@ class SimWorld(Framework):
         dead_podds = []
         parent_podds = []
         for fixture, podd in self.podds.values():
-            move_actions = podd.choose_action(None)
+            move_actions = podd.choose_action([])
             for direction, applyforce in zip([MOVEDIR_FRONT, MOVEDIR_LEFT, MOVEDIR_RIGHT], move_actions):
                 if applyforce:
                     self.move_obj(fixture, direction, podd.attr["strength"])
@@ -144,7 +154,7 @@ class SimWorld(Framework):
         for p in self.food:
             hit = fixture.shape.TestPoint(transform, p)
             if hit:
-                print(f"Hit: {id} - {p}")
+                logging.debug(f"Food hit detected: {id} - {p}")
                 hits.append(p)
         return hits
 
@@ -165,12 +175,12 @@ class SimWorld(Framework):
     def kill_podd(self, id):
         self.world.DestroyBody(self.podds[id][0].body)
         self.podds.pop(id, None)
-        print(f"Podd {id} killed")
+        logging.info(f"Podd {id} died")
 
     def birth_podd(self, id):
         new_podd_genome = self.podds[id][1].new_genome()
         self.add_podd(new_podd_genome, self.podds[id][0].body.position, id)
-        print(f"New podd {self.next_id - 1} born from parent {id}")
+        logging.info(f"New podd {self.next_id - 1} born from parent {id}. Genome: {new_podd_genome}")
 
     def move_obj(self, fixture, movement, strength):
         if movement == MOVEDIR_FRONT:
@@ -192,6 +202,7 @@ class SimWorld(Framework):
         avg_strength = sum([podd[1].attr["strength"] for podd in self.podds.values()])/population
         with open(self.statsfile, "a") as f:
             f.write(f"{time_s}{SEP}{population}{SEP}{total_food}{SEP}{avg_energy}{SEP}{avg_size}{SEP}{avg_strength}\n")
+        logging.info(f"Stats : {time_s} {SEP} {population} {SEP} {total_food} {SEP} {avg_energy} {SEP} {avg_size} {SEP} {avg_strength}")
 
 if __name__ == "__main__":
     main(SimWorld)
