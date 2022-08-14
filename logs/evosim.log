@@ -1,0 +1,21 @@
+2022-08-14 18:59:13,211 | world | DEBUG | Food hit detected: 28 - (26.5, 11.5)
+2022-08-14 18:59:13,215 | world | DEBUG | Food hit detected: 39 - (-55.3, 43.3)
+2022-08-14 18:59:13,216 | world | DEBUG | Food hit detected: 40 - (-4.6, -56.3)
+2022-08-14 18:59:13,224 | world | DEBUG | Food hit detected: 60 - (47.9, -12.6)
+2022-08-14 18:59:13,227 | world | DEBUG | Food hit detected: 69 - (-48.5, 3.5)
+2022-08-14 18:59:13,236 | world | DEBUG | Food hit detected: 89 - (55.8, -4.8)
+2022-08-14 18:59:20,132 | world | DEBUG | Food hit detected: 4 - (48.8, -57.5)
+2022-08-14 18:59:20,136 | world | DEBUG | Food hit detected: 11 - (7.8, -5.5)
+2022-08-14 18:59:20,140 | world | DEBUG | Food hit detected: 21 - (22.0, -11.1)
+2022-08-14 18:59:20,141 | world | DEBUG | Food hit detected: 23 - (-54.6, -41.1)
+2022-08-14 18:59:20,148 | world | DEBUG | Food hit detected: 38 - (50.6, -9.6)
+2022-08-14 18:59:20,150 | world | DEBUG | Food hit detected: 45 - (-12.2, -46.8)
+2022-08-14 18:59:20,157 | world | DEBUG | Food hit detected: 62 - (43.8, 12.4)
+2022-08-14 18:59:20,159 | world | DEBUG | Food hit detected: 66 - (42.8, 18.4)
+2022-08-14 18:59:20,165 | world | DEBUG | Food hit detected: 81 - (55.8, -27.3)
+2022-08-14 18:59:20,172 | world | DEBUG | Food hit detected: 99 - (-0.4, -4.5)
+2022-08-14 18:59:47,471 | world | INFO | Stats : time_s=20 population=100 total_food=1029 avg_energy=90.69533333333398 avg_size=1.0 avg_strength=1.0
+2022-08-14 18:59:49,456 | world | DEBUG | Food hit detected: 14 - (38.7, 43.6)
+2022-08-14 19:00:16,118 | world | INFO | Stats : time_s=40 population=100 total_food=1068 avg_energy=80.49633333333435 avg_size=1.0 avg_strength=1.0
+2022-08-14 19:00:45,077 | world | INFO | Stats : time_s=60 population=100 total_food=1108 avg_energy=70.19766666666851 avg_size=1.0 avg_strength=1.0
+2022-08-14 19:01:14,798 | world | INFO | Stats : time_s=80 population=100 total_food=1148 avg_energy=59.89433333333552 avg_size=1.0 avg_strength=1.0

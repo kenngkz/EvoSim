@@ -34,6 +34,10 @@ class FrameworkSettings:
     # testing)
     onlyInit = False
 
+    # Initial view options
+    zoom = 5.5  # smaller = zoom out
+    window_size = (1280, 720)
+
 class WorldSettings:
 
     init_podds = 100

@@ -10,6 +10,9 @@ import logging
 from custom_framework import CustomFramework as Framework, main
 from podd import Podd, generate_brain_genomes
 from settings import FrameworkSettings as FS, WorldSettings as WS, PoddSettings as PS
+from utils import get_logger
+
+logger = get_logger("world")
 
 # constants
 MOVEDIR_FRONT = "forward"
@@ -122,7 +125,7 @@ class SimWorld(Framework):
             self.birth_podd(podd_id)
 
         # update stats
-        if self.frame_counter % 600 == 0:  # every 10s
+        if self.frame_counter * 10 % FS.hz == 0:  # every 10s
             self.update_stats()
 
     def add_food(self, p=None):
@@ -139,7 +142,7 @@ class SimWorld(Framework):
         for p in self.food:
             hit = fixture.shape.TestPoint(transform, p)
             if hit:
-                logging.debug(f"Food hit detected: {id} - {p}")
+                logger.debug(f"Food hit detected: {id} - {p}")
                 hits.append(p)
         return hits
 
@@ -160,12 +163,12 @@ class SimWorld(Framework):
     def kill_podd(self, id):
         self.world.DestroyBody(self.podds[id][0].body)
         self.podds.pop(id, None)
-        logging.info(f"Podd {id} died")
+        logger.info(f"Podd {id} died")
 
     def birth_podd(self, id):
         new_podd_genome = self.podds[id][1].new_genome()
         self.add_podd(new_podd_genome, self.podds[id][0].body.position, id)
-        logging.info(f"New podd {self.next_id - 1} born from parent {id}. Genome: {new_podd_genome}")
+        logger.info(f"New podd {self.next_id - 1} born from parent {id}. Genome: {new_podd_genome}")
 
     def move_obj(self, fixture, movement, strength):
         if movement == MOVEDIR_FRONT:
@@ -177,7 +180,7 @@ class SimWorld(Framework):
 
     def update_stats(self):
         # history
-        time_s = self.frame_counter // 600
+        time_s = self.frame_counter // FS.hz
         population = len(self.podds)
         if population == 0:
             return
@@ -187,7 +190,7 @@ class SimWorld(Framework):
         avg_strength = sum([podd[1].attr["strength"] for podd in self.podds.values()])/population
         with open(self.statsfile, "a") as f:
             f.write(f"{time_s}{SEP}{population}{SEP}{total_food}{SEP}{avg_energy}{SEP}{avg_size}{SEP}{avg_strength}\n")
-        logging.info(f"Stats : {time_s} {SEP} {population} {SEP} {total_food} {SEP} {avg_energy} {SEP} {avg_size} {SEP} {avg_strength}")
+        logger.info(f"Stats : {time_s=} {population=} {total_food=} {avg_energy=} {avg_size=} {avg_strength=}")
 
 if __name__ == "__main__":
     main(SimWorld)
