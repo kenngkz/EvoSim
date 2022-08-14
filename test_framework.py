@@ -12,8 +12,8 @@ class fwSettings(object):
 
     # Physics options
     hz = 30.0
-    velocityIterations = 6
-    positionIterations = 3
+    velocityIterations = 4
+    positionIterations = 2
     # Makes physics results more accurate (see Box2D wiki)
     enableWarmStarting = True
     enableContinuous = True     # Calculate time of impact
@@ -22,7 +22,7 @@ class fwSettings(object):
     # Drawing
     drawStats = True
     drawShapes = True
-    drawJoints = True
+    drawJoints = False
     drawCoreShapes = False
     drawAABBs = False
     drawOBBs = False
@@ -33,7 +33,7 @@ class fwSettings(object):
     drawFPS = True
     drawMenu = True             # toggle by pressing F1
     drawCOMs = False            # Centers of mass
-    pointSize = 2.5             # pixel radius for drawing points
+    pointSize = 2.0             # pixel radius for drawing points
 
     # Miscellaneous testbed options
     pause = False
