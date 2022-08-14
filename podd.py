@@ -4,8 +4,11 @@
 
 import numpy as np
 import random
+import logging
 
-from settings import PoddSettings as PS, BrainSettings as BS
+from settings import PoddSettings as PS, BrainSettings as BS, FrameworkSettings as FS
+
+logger = logging.getLogger("logger")
 
 '''
 obs: 32 vision inputs, ? internal inputs
@@ -45,15 +48,23 @@ class Podd:
     def _parse_genome(self):
         self.attr = {"size":self.genome["size"], "strength":self.genome["strength"]}
         self.birth_energy = self.genome["birth_energy"]
-        self.brain = Brain(self.genome["brain"])
-        
-    def choose_action(self, obs):
+        self.brain = Brain(self.genome["brain"], self.id)
+
+    def step(self, obs):
+        self.age += 1/FS.hz
+        self.dead = False
+        self.give_birth = False
         obs = obs + [self.energy, *self.previous_action, random.random()-0.5, 1]
         self.previous_action = self.brain.compute(obs)
-        return self.previous_action
+        self.energy -= PS.ec_moving * sum([action > 0 for action in self.previous_action]) / FS.hz
+        self.energy -= PS.ec_living / FS.hz
+        if self.energy <= 0 or len(self.previous_action) == 0:
+            self.dead = True
+        if self.energy >= self.birth_energy and self.age >= PS.birth_age:
+            self.give_birth = True
+        return [action > 0 for action in self.previous_action]
 
-
-    def new_genome(self):  # TODO: revamp this
+    def new_genome(self):
         new = {}
         for attr, value in self.genome.items():
             if attr == "brain":
@@ -94,7 +105,8 @@ class Node:
 
 class Brain:
 
-    def __init__(self, brain_genome):
+    def __init__(self, brain_genome, id=None):
+        self.id = id
         self.genome = brain_genome
         self.computations = {}
         self.input_nodes = [f"i{i:04}" for i in range(BS.n_inputs)]
@@ -116,7 +128,11 @@ class Brain:
     def compute(self, input_values):
         for i, val in enumerate(input_values):
             self.computations["i" + str(i).zfill(len(str(BS.max_node)))] = val
-        output = np.array([self.nodelist[node_id].compute() for node_id in self.output_nodes])
+        try:
+            output = np.array([self.nodelist[node_id].compute() for node_id in self.output_nodes])
+        except Exception as e:
+            logger.debug(f"Podd {self.id} brain died due to exception: {e}")
+            output = []
         self.computations = {}
         return output
 

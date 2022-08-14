@@ -18,6 +18,7 @@ logger = get_logger("world")
 MOVEDIR_FRONT = "forward"
 MOVEDIR_LEFT = "counter-clockwise"
 MOVEDIR_RIGHT = "clockwise"
+MOVEDIRS = [MOVEDIR_FRONT, MOVEDIR_LEFT, MOVEDIR_RIGHT]
 SEP = ";"  # delimiter for csv
 
 sample_brains = generate_brain_genomes(WS.init_podds)
@@ -100,32 +101,21 @@ class SimWorld(Framework):
                 self.food.remove(hit)
                 obj[1].energy += WS.food_energy
 
-        # podd movements + energy tracking
-        dead_podds = []
-        parent_podds = []
+        # podd movements
         for fixture, podd in self.podds.values():
-            move_actions = podd.choose_action([])
-            for direction, applyforce in zip([MOVEDIR_FRONT, MOVEDIR_LEFT, MOVEDIR_RIGHT], move_actions):
-                if applyforce:
-                    self.move_obj(fixture, direction, podd.attr["strength"])
-                    podd.energy -= PS.ec_moving/FS.hz  # consume energy to move
-            podd.energy -= PS.ec_living/FS.hz
-            podd.age += 1/FS.hz  # +1 per second alive
-            if podd.energy <= 0:
-                dead_podds.append(podd.id)
-            if podd.energy >= podd.birth_energy and podd.age >= PS.birth_age:
-                parent_podds.append(podd.id)
-                podd.energy -= PS.birth_cost
-
-        # kill dead podds
-        for podd_id in dead_podds:
-            self.kill_podd(podd_id)
-        # birth new podds
-        for podd_id in parent_podds:
-            self.birth_podd(podd_id)
+            move_actions = podd.step([])
+            for i, move in enumerate(move_actions):
+                if move:
+                    self.move_obj(fixture, MOVEDIRS[i], podd.attr["strength"])
+        
+        # kill dead podds and birth new podds
+        for dead_podd in [podd for fixture, podd in self.podds.values() if podd.dead]:
+            self.kill_podd(dead_podd.id)
+        for parent_podd in [podd for fixture, podd in self.podds.values() if podd.give_birth]:
+            self.birth_podd(parent_podd.id)
 
         # update stats
-        if self.frame_counter * 10 % FS.hz == 0:  # every 10s
+        if self.frame_counter % (10*FS.hz) == 0:  # every 10s
             self.update_stats()
 
     def add_food(self, p=None):
