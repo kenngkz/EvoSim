@@ -7,8 +7,8 @@ import random
 import os
 import logging
 
-from custom_framework import CustomFramework as Framework
-from custom_framework import main, Keys
+from test_framework import CustomFramework as Framework
+from test_framework import main
 from podd import Podd, generate_brain_genomes
 
 MOVEDIR_FRONT = "forward"
@@ -18,6 +18,7 @@ ENABLE_BORDER = True
 ROUNDED_CORNERS = False
 SEP = ";"  # delimiter for csv
 
+hz = 30
 n_podds_init = 100
 sample_brains = generate_brain_genomes(100)
 test_genomes = []
@@ -29,7 +30,7 @@ class SimWorld(Framework):
     description = "Scroll/Z/X to zoom, Arrow keys to move screen, Esc to quit."
 
     # food
-    SPAWN_FOOD_INTERVAL = 0.5 * 60  # number of frames/steps
+    SPAWN_FOOD_INTERVAL = 0.5 * hz  # number of frames/steps
     GRID = 10  # smaller -> food spawn further apart
     SPAWN_FOOD_BOX = 60 * GRID
     INIT_FOOD = 500
@@ -120,9 +121,9 @@ class SimWorld(Framework):
             for direction, applyforce in zip([MOVEDIR_FRONT, MOVEDIR_LEFT, MOVEDIR_RIGHT], move_actions):
                 if applyforce:
                     self.move_obj(fixture, direction, podd.attr["strength"])
-                    podd.energy -= podd.ENERGY_CONSUMPTION_MOVING/60  # consume energy to move
-            podd.energy -= podd.ENERGY_CONSUMPTION_LIVING/60
-            podd.age += 1/60  # +1 per second alive
+                    podd.energy -= podd.ENERGY_CONSUMPTION_MOVING/hz  # consume energy to move
+            podd.energy -= podd.ENERGY_CONSUMPTION_LIVING/hz
+            podd.age += 1/hz  # +1 per second alive
             if podd.energy <= 0:
                 dead_podds.append(podd.id)
             if podd.energy >= podd.birth_energy and podd.age >= podd.BIRTH_AGE:
@@ -165,7 +166,7 @@ class SimWorld(Framework):
     def add_podd(self, genome, position=(0, 0), parent=None):
         scale = genome["size"]
         shape = b2d.b2PolygonShape(vertices=[(0, 0), (-scale, -scale), (scale, -scale)])
-        body = self.world.CreateDynamicBody(position=position, angularDamping=5, linearDamping=0.1)
+        body = self.world.CreateDynamicBody(position=position, angle=random.random()*6.28, angularDamping=5, linearDamping=0.1)
         main_fixture = body.CreateFixture(shape=shape, density=self.TEST_DENSITY, friction=0.3)
         self.podds[self.next_id] = (main_fixture, Podd(genome, self.next_id))
         self.next_id += 1
