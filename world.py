@@ -4,15 +4,13 @@
 
 import Box2D as b2d
 import random
-import os
-import logging
 
 from custom_framework import CustomFramework as Framework, main
 from podd import Podd, generate_brain_genomes
 from settings import FrameworkSettings as FS, WorldSettings as WS, PoddSettings as PS
 from utils import get_logger
 
-logger = get_logger("world")
+logger = get_logger("logger")
 
 # constants
 MOVEDIR_FRONT = "forward"
@@ -24,7 +22,8 @@ SEP = ";"  # delimiter for csv
 sample_brains = generate_brain_genomes(WS.init_podds)
 test_genomes = []
 for _ in range(WS.init_podds):
-    test_genomes.append({"size":1, "strength":1, "birth_energy":120, "brain":random.choice(sample_brains)})
+    # test_genomes.append({"size":1, "strength":1, "birth_energy":120, "brain":random.choice(sample_brains)})
+    test_genomes.append({"size":1, "strength":1, "birth_energy":45, "brain":{}})
 
 class SimWorld(Framework):
     name = "Simulation world"
@@ -80,13 +79,14 @@ class SimWorld(Framework):
 
         # test
         for genome in test_genomes:
-            self.add_podd(genome, position=(random.randint(-WS.spawn_food_box, WS.spawn_food_box)/10, random.randint(-WS.spawn_food_box, WS.spawn_food_box)/10))
+            # self.add_podd(genome, position=(random.randint(-WS.spawn_food_box, WS.spawn_food_box)/10, random.randint(-WS.spawn_food_box, WS.spawn_food_box)/10))
+            self.add_podd(genome, position=(0, 0))
     
     def Step(self, settings):
         self.frame_counter += 1
         # food spawn and display
         self.spawn_food_counter += 1
-        if self.spawn_food_counter >= WS.spawn_food_interval:
+        if self.spawn_food_counter >= WS.spawn_food_interval and len(self.food) < WS.max_food:
             self.spawn_food_counter = 0
             self.add_food()
         self.display_food()
@@ -103,7 +103,7 @@ class SimWorld(Framework):
 
         # podd movements
         for fixture, podd in self.podds.values():
-            move_actions = podd.step([])
+            move_actions = podd.step([], len(self.podds))
             for i, move in enumerate(move_actions):
                 if move:
                     self.move_obj(fixture, MOVEDIRS[i], podd.attr["strength"])
@@ -145,20 +145,21 @@ class SimWorld(Framework):
         shape = b2d.b2PolygonShape(vertices=[(0, 0), (-scale, -scale), (scale, -scale)])
         body = self.world.CreateDynamicBody(position=position, angle=random.random()*6.28, angularDamping=5, linearDamping=0.1)
         main_fixture = body.CreateFixture(shape=shape, density=WS.test_density, friction=0.3)
-        self.podds[self.next_id] = (main_fixture, Podd(genome, self.next_id))
+        self.podds[self.next_id] = (main_fixture, Podd(genome, self.next_id, parent))
         self.next_id += 1
         with open(self.censusfile, "a") as f:
             f.write(f"{self.next_id-1}{SEP}{parent}{SEP}{genome}\n")
 
     def kill_podd(self, id):
+        logger.info(f"DEATH : {id} died. Age: {self.podds[id][1].age}. Children: {self.podds[id][1].children}")
         self.world.DestroyBody(self.podds[id][0].body)
         self.podds.pop(id, None)
-        logger.info(f"Podd {id} died")
 
     def birth_podd(self, id):
         new_podd_genome = self.podds[id][1].new_genome()
         self.add_podd(new_podd_genome, self.podds[id][0].body.position, id)
-        logger.info(f"New podd {self.next_id - 1} born from parent {id}. Genome: {new_podd_genome}")
+        self.podds[id][1].children.append(self.next_id - 1)
+        logger.info(f"BIRTH : {self.next_id - 1} from parent {id}. Genome: {new_podd_genome}")
 
     def move_obj(self, fixture, movement, strength):
         if movement == MOVEDIR_FRONT:
@@ -175,12 +176,12 @@ class SimWorld(Framework):
         if population == 0:
             return
         total_food = len(self.food)
-        avg_energy = sum([podd[1].energy for podd in self.podds.values()])/population
+        avg_net_energy = sum([podd[1].energy - podd[1].min_energy for podd in self.podds.values()])/population
         avg_size = sum([podd[1].attr["size"] for podd in self.podds.values()])/population
         avg_strength = sum([podd[1].attr["strength"] for podd in self.podds.values()])/population
         with open(self.statsfile, "a") as f:
-            f.write(f"{time_s}{SEP}{population}{SEP}{total_food}{SEP}{avg_energy}{SEP}{avg_size}{SEP}{avg_strength}\n")
-        logger.info(f"Stats : {time_s=} {population=} {total_food=} {avg_energy=} {avg_size=} {avg_strength=}")
+            f.write(f"{time_s}{SEP}{population}{SEP}{total_food}{SEP}{avg_net_energy}{SEP}{avg_size}{SEP}{avg_strength}\n")
+        logger.info(f"STATS : {time_s=} {population=} {total_food=} {avg_net_energy=}")
 
 if __name__ == "__main__":
     main(SimWorld)

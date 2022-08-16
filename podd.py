@@ -6,7 +6,7 @@ import numpy as np
 import random
 import logging
 
-from settings import PoddSettings as PS, BrainSettings as BS, FrameworkSettings as FS
+from settings import PoddSettings as PS, BrainSettings as BS, FrameworkSettings as FS, WorldSettings as WS
 
 logger = logging.getLogger("logger")
 
@@ -37,11 +37,14 @@ class Podd:
     Represents a Podd: genome, brain, energy etc.
     '''
 
-    def __init__(self, genome, id):
+    def __init__(self, genome, id, parent=None):
         self.id = id
         self.genome = genome
+        self.parent = parent
+        self.children = []
         self._parse_genome()
         self.energy = PS.init_energy
+        self.min_energy = 0
         self.age = 0  # number of seconds alive
         self.previous_action = np.array([0, 0, 0])
 
@@ -50,18 +53,26 @@ class Podd:
         self.birth_energy = self.genome["birth_energy"]
         self.brain = Brain(self.genome["brain"], self.id)
 
-    def step(self, obs):
+    def step(self, obs, n_podds):
+        # bookkeeping
         self.age += 1/FS.hz
+        self.min_energy += PS.age_factor * 2 * (random.random()>0.5)
+        self.energy = min(self.energy, PS.max_energy)
         self.dead = False
         self.give_birth = False
+        # choose action
         obs = obs + [self.energy, *self.previous_action, random.random()-0.5, 1]
         self.previous_action = self.brain.compute(obs)
-        self.energy -= PS.ec_moving * sum([action > 0 for action in self.previous_action]) / FS.hz
-        self.energy -= PS.ec_living / FS.hz
-        if self.energy <= 0 or len(self.previous_action) == 0:
+        # energy tracking
+        self.energy += WS.sunlight_energy / n_podds
+        self.energy -= PS.ec_moving * sum([action > 0 for action in self.previous_action])
+        self.energy -= PS.ec_living
+        # status effects
+        if self.energy <= self.min_energy or len(self.previous_action) == 0:
             self.dead = True
         if self.energy >= self.birth_energy and self.age >= PS.birth_age:
             self.give_birth = True
+            self.energy -= PS.birth_cost
         return [action > 0 for action in self.previous_action]
 
     def new_genome(self):
@@ -72,7 +83,7 @@ class Podd:
             else:
                 new[attr] = value
                 if random.random() < PS.mut_rate:
-                    new[attr] *= random.normalvariate(1, PS.mut_var)
+                    new[attr] *= random.normalvariate(1, PS.mut_sd)
         return new
 
 ### BRAIN ###
@@ -120,7 +131,7 @@ class Brain:
     def build(self):
         for connection, value in self.genome.items():
             nodes = connection.split("-")
-            for node_id in nodes: 
+            for node_id in nodes:
                 if node_id not in self.nodelist:
                     self.nodelist[node_id] = Node(self.new_node_id(), self, self.nodelist)
             self.nodelist[nodes[1]].add_connection(nodes[0], value)
@@ -148,7 +159,7 @@ class Brain:
         new = {}
         for connection, weight in self.genome.items():
             if random.random() > BS.chance_del:  # if not deleting
-                new[connection] = weight * random.normalvariate(1, BS.mut_var) if abs(weight) > BS.min_mut_weight else weight + BS.min_mut_weight * random.normalvariate(0, BS.mut_var)
+                new[connection] = weight * random.normalvariate(1, BS.mut_sd) if abs(weight) > BS.min_mut_weight else weight + BS.min_mut_weight * random.normalvariate(0, BS.mut_sd)
         # new connections
         if random.random() < BS.chance_new:
             nodes = list(self.nodelist.keys())
@@ -170,8 +181,3 @@ def generate_brain_genomes(final_sample, generations=8, n_parents=50, n_children
             children += [Brain(parent.new_genome()) for _ in range(n_children)]
         pop = children
     return [brain.genome for brain in random.sample(pop, final_sample)]
-
-
-
-#### MINIMUM ENERGY THAT INCREASES WITH AGE
-# can have podds that dont move continue to recieve energy passively? how to encourage movement? passive energy distributed among podds (and food?)
