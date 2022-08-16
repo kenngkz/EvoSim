@@ -86,9 +86,10 @@ class Podd:
         if self.energy >= self.birth_energy+self.min_energy and self.age >= PS.birth_age:
             self.give_birth = True
             self.energy -= PS.birth_cost
+
         return [action > 0 for action in self.previous_action]
 
-    def new_genome(self):
+    def new_genome(self, new_id=None):
         new = {}
         for attr, value in self.genome.items():
             if attr == "brain":
@@ -97,6 +98,8 @@ class Podd:
                 new[attr] = value
                 if random.random() < PS.mut_rate:
                     new[attr] *= random.normalvariate(1, PS.mut_sd)
+        if new_id:
+            logger.info(f"BIRTH : {new_id} from parent {self.id}. Genome: {self.print_genome()}")
         return new
 
     def print_genome(self):
@@ -192,7 +195,7 @@ class Brain:
         return new
 
     def print_genome(self):
-        s = "brain-{"
+        s = "{ "
         for connection, weight in self.genome.items():
             s += f"{connection}:{weight:04f} "
         s += "}"

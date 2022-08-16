@@ -158,10 +158,9 @@ class SimWorld(Framework):
         self.podds.pop(id, None)
 
     def birth_podd(self, id):
-        new_podd_genome = self.podds[id][1].new_genome()
-        new_id = self.add_podd(new_podd_genome, self.podds[id][0].body.position, id)
-        self.podds[id][1].children.append(new_id)
-        logger.info(f"BIRTH : {new_id} from parent {id}. Genome: {self.podds[new_id][1].print_genome()}")
+        new_podd_genome = self.podds[id][1].new_genome(self.next_id)
+        self.podds[id][1].children.append(self.next_id)
+        self.add_podd(new_podd_genome, self.podds[id][0].body.position, id)
 
     def move_obj(self, fixture, movement, strength):
         if movement == MOVEDIR_FRONT:
