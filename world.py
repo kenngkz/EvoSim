@@ -4,13 +4,14 @@
 
 import Box2D as b2d
 import random
+import logging
 
 from custom_framework import CustomFramework as Framework, main
 from podd import Podd, generate_brain_genomes
 from settings import FrameworkSettings as FS, WorldSettings as WS, PoddSettings as PS
 from utils import get_logger
 
-logger = get_logger("logger")
+logger = get_logger(__name__)
 
 # constants
 MOVEDIR_FRONT = "forward"
@@ -149,17 +150,18 @@ class SimWorld(Framework):
         self.next_id += 1
         with open(self.censusfile, "a") as f:
             f.write(f"{self.next_id-1}{SEP}{parent}{SEP}{genome}\n")
+        return self.next_id - 1
 
     def kill_podd(self, id):
-        logger.info(f"DEATH : {id} died. Age: {self.podds[id][1].age}. Children: {self.podds[id][1].children}")
+        # logger.info(f"DEATH : {id} died. Age: {self.podds[id][1].age}. Children: {self.podds[id][1].children}")
         self.world.DestroyBody(self.podds[id][0].body)
         self.podds.pop(id, None)
 
     def birth_podd(self, id):
         new_podd_genome = self.podds[id][1].new_genome()
-        self.add_podd(new_podd_genome, self.podds[id][0].body.position, id)
-        self.podds[id][1].children.append(self.next_id - 1)
-        logger.info(f"BIRTH : {self.next_id - 1} from parent {id}. Genome: {new_podd_genome}")
+        new_id = self.add_podd(new_podd_genome, self.podds[id][0].body.position, id)
+        self.podds[id][1].children.append(new_id)
+        logger.info(f"BIRTH : {new_id} from parent {id}. Genome: {self.podds[new_id][1].print_genome()}")
 
     def move_obj(self, fixture, movement, strength):
         if movement == MOVEDIR_FRONT:

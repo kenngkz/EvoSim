@@ -4,11 +4,11 @@
 
 import numpy as np
 import random
-import logging
 
 from settings import PoddSettings as PS, BrainSettings as BS, FrameworkSettings as FS, WorldSettings as WS
+from utils import get_logger
 
-logger = logging.getLogger("logger")
+logger = get_logger(__name__)
 
 '''
 obs: 32 vision inputs, ? internal inputs
@@ -19,18 +19,22 @@ actions: turn left, turn right, move forward, move backward --> applied simultan
 '''
 start with dict as genome?
 genome: {
-    "size",        [0.5  2]
-    "strength",        [1  50]
+    "size",
+    "strength",
     "brain":{
-        "init_prev":[x, x, x],
-        "energy":[x, x, x],
-        "random_scale":
+
     }
 }
 
 attributes: size, strength
 brain: map inputs to 3 actions: forward, left, right
 '''
+
+def death_rate(age):
+    return PS.fixed_death_rate + age * PS.age_deterioration
+
+death_rates = [death_rate(i) for i in range(240)]  # death rate jump up every second to update to new age
+
 
 class Podd:
     '''
@@ -68,9 +72,18 @@ class Podd:
         self.energy -= PS.ec_moving * sum([action > 0 for action in self.previous_action])
         self.energy -= PS.ec_living
         # status effects
-        if self.energy <= self.min_energy or len(self.previous_action) == 0:
+        if self.energy <= self.min_energy:
+            cause = "no_energy"
+        elif len(self.previous_action) == 0:
+            cause = "brain_malfunction"
+        elif random.random() < death_rates[int(self.age)]:
+            cause = "age"
+        else:
+            cause = None
+        if cause:
             self.dead = True
-        if self.energy >= self.birth_energy and self.age >= PS.birth_age:
+            logger.info(f"DEATH : {self.id} died. Cause: {cause} Age: {self.age:02f} Children: {self.children}")
+        if self.energy >= self.birth_energy+self.min_energy and self.age >= PS.birth_age:
             self.give_birth = True
             self.energy -= PS.birth_cost
         return [action > 0 for action in self.previous_action]
@@ -85,6 +98,15 @@ class Podd:
                 if random.random() < PS.mut_rate:
                     new[attr] *= random.normalvariate(1, PS.mut_sd)
         return new
+
+    def print_genome(self):
+        s = ""
+        for attr, val in self.genome.items():
+            if attr == "brain":
+                s += self.brain.print_genome()
+            else:
+                s += f"{attr}:{val:.04f} "
+        return s
 
 ### BRAIN ###
 
@@ -168,6 +190,13 @@ class Brain:
             nodes.remove(from_node)
             new[f"{from_node}-{random.choice(nodes)}"] = random.normalvariate(0, 1)
         return new
+
+    def print_genome(self):
+        s = "brain-{"
+        for connection, weight in self.genome.items():
+            s += f"{connection}:{weight:04f} "
+        s += "}"
+        return s
 
 
 def generate_brain_genomes(final_sample, generations=8, n_parents=50, n_children=20):

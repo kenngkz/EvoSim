@@ -68,12 +68,16 @@ class PoddSettings:
     init_energy = 30
     max_energy = 60
     age_factor = 0.2 / FrameworkSettings.hz  # how quickly do the podds minimum energy rises in response to age
-    ec_moving = 1 / FrameworkSettings.hz # energy consumed per second to move
-    ec_living = 0.5 / FrameworkSettings.hz # energy consumed per second to continue living
+    ec_moving = 1 / FrameworkSettings.hz # energy consumed per frame to move
+    ec_living = 0.5 / FrameworkSettings.hz # energy consumed per frame to continue living
 
     # reproduction
     birth_cost = 35  # energy cost in giving birth
     birth_age = 8  # minimum age to give birth in seconds
+
+    # age death
+    fixed_death_rate = 0.0 / FrameworkSettings.hz  # death chance per frame
+    age_deterioration = 0.0002 /FrameworkSettings.hz  # death chance per frame scaling in response to age
 
     # mutation
     mut_rate = 0.5
