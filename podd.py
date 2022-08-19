@@ -125,56 +125,52 @@ activation = relu
 
 class Node:
 
-    def __init__(self, id, nodelist=None):
+    def __init__(self, id, brain, nodelist=None):
         self.id = id
+        self.brain = brain
         self.connections = {}  # nodes that feed into this node
         self.nodelist = nodelist if nodelist else {} # list of node ids, shared between all Nodes in a Brain
-        self.value = None
 
-    def add_connection(self, node, weight):
-        self.connections[node.id] = weight
+    def add_connection(self, node_id, weight):
+        self.connections[node_id] = (self.nodelist[node_id], weight)
 
+    def compute(self):
+        if self.id not in self.brain.computations:
+            self.brain.computations[self.id] = activation(sum([node.compute()*weight for node, weight in self.connections.values()]))
+        return self.brain.computations[self.id]
 
 class Brain:
 
     def __init__(self, brain_genome, id=None):
         self.id = id
         self.genome = brain_genome
+        self.computations = {}
         self.input_nodes = [f"i{i:04}" for i in range(BS.n_inputs)]
         self.output_nodes = [f"o{i:04}" for i in range(BS.n_outputs)]
         ionodes = self.input_nodes + self.output_nodes
         self.nodelist = {node_id:Node(node_id, self) for node_id in ionodes}
+        for node in self.nodelist.values():
+            node.nodelist = self.nodelist
         self.build()
-        
+
     def build(self):
         for connection, value in self.genome.items():
             nodes = connection.split("-")
             for node_id in nodes:
                 if node_id not in self.nodelist:
-                    self.nodelist[node_id] = Node(node_id, self.nodelist)
-            self.nodelist[nodes[1]].add_connection(self.nodelist[nodes[0]], value)
+                    self.nodelist[node_id] = Node(self.new_node_id(), self, self.nodelist)
+            self.nodelist[nodes[1]].add_connection(nodes[0], value)
 
-    def compute(self, input_values):  # len(input_values) should be = len(input_nodes)
+    def compute(self, input_values):
         for i, val in enumerate(input_values):
-            self.nodelist[self.input_nodes[i]].value = val
-        compute_stack = []
-        nodes_to_crawl = self.output_nodes.copy()
-        while len(nodes_to_crawl) > 0:
-            compute_stack += nodes_to_crawl
-            next_level_nodes = []
-            for node_id in nodes_to_crawl:
-                # print(node.id, node.connections)
-                for child_id in self.nodelist[node_id].connections:
-                    if child_id not in compute_stack:
-                        compute_stack.append(child_id)
-            nodes_to_crawl = next_level_nodes
-        while len(compute_stack) > 0:
-            node_to_compute = self.nodelist[compute_stack.pop()]
-            if not node_to_compute.value:
-                node_to_compute.value = activation(sum([self.nodelist[node_id].value * weight for node_id, weight in node_to_compute.connections.items()]))
-        output = [self.nodelist[node_id].value for node_id in self.output_nodes]
-        for node in self.nodelist.values():
-            node.value = None
+            self.computations["i" + str(i).zfill(len(str(BS.max_node)))] = val
+        try:
+            output = np.array([self.nodelist[node_id].compute() for node_id in self.output_nodes])
+        except Exception as e:
+            # logger.debug(f"Podd {self.id} brain died due to exception: {e}")
+            print(f"Podd {self.id} brain died due to exception: {e}\nInputs: {input_values}\nBrain_genome: {self.genome}")
+            output = []
+        self.computations = {}
         return output
 
     def new_node_id(self):
