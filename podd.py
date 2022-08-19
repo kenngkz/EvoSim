@@ -19,7 +19,7 @@ actions: turn left, turn right, move forward, move backward --> applied simultan
 '''
 start with dict as genome?
 genome: {
-    "size",
+    "size",  -> min 0.5 max 5
     "strength",
     "brain":{
 
@@ -40,6 +40,7 @@ class Podd:
     '''
     Represents a Podd: genome, brain, energy etc.
     '''
+    max_min = {"size":[5, 0.3]}
 
     def __init__(self, genome, id, parent=None):
         self.id = id
@@ -97,10 +98,18 @@ class Podd:
             else:
                 new[attr] = value
                 if random.random() < PS.mut_rate:
-                    new[attr] *= random.normalvariate(1, PS.mut_sd)
+                    new_val = value * random.normalvariate(1, PS.mut_sd)
+                    if self.in_range(attr, new_val):
+                        new[attr] = new_val
         if new_id:
             logger.info(f"BIRTH | Podd {new_id} from parent {self.id}. Genome: {self.print_genome()}")
         return new
+
+    def in_range(self, attr, value):
+        if attr in self.max_min:
+            if value > self.max_min[attr][0] or value < self.max_min[attr][1]:
+                return False
+        return True
 
     def print_genome(self):
         s = ""
@@ -111,10 +120,8 @@ class Podd:
                 s += f"{attr}:{val:.04f} "
         return s
 
+
 ### BRAIN ###
-
-
-
 
 ## for now just do non-learning neurons
 # {node_name-node_name: weight}

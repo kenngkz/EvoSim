@@ -48,10 +48,10 @@ class WorldSettings:
     spawn_food_box = 60 * grid
     init_food = 200
     max_food = 4000
-    food_energy = 10  # can be genetically determined in the future
+    food_energy = 18  # can be genetically determined in the future
 
     # sunlight
-    sunlight_energy = 10 / FrameworkSettings.hz
+    sunlight_energy = 16 / FrameworkSettings.hz
 
     # movement
     turn_scale = 0.5  # ratio of turning force to forward force
@@ -65,22 +65,24 @@ class WorldSettings:
 
 class PoddSettings:
     # energy
-    init_energy = 30
-    max_energy = 60
+    init_energy = 40
+    max_energy = 80
     age_factor = 0.2 / FrameworkSettings.hz  # how quickly do the podds minimum energy rises in response to age
-    ec_moving = 1 / FrameworkSettings.hz # energy consumed per frame to move
+    ec_moving = 2 / FrameworkSettings.hz # energy consumed per frame to move
     ec_living = 0.5 / FrameworkSettings.hz # energy consumed per frame to continue living
     ec_factor_brain = 0.05 / FrameworkSettings.hz  # energy consumed per frame per point of brain complexity
-    ec_factor_size = 0.1 / FrameworkSettings.hz  # energy consumed per frame per point of size
-    ec_factor_str = 0.1 / FrameworkSettings.hz  # energy consumer per frame per point of strength
+    ec_factor_size = 1 / FrameworkSettings.hz  # energy consumed per frame per point of size
+    ec_factor_str = 1 / FrameworkSettings.hz  # energy consumer per frame per point of strength
 
     # reproduction
-    birth_cost = 35  # energy cost in giving birth
+    birth_cost = 50  # energy cost in giving birth
     # birth_age = 8  # minimum age to give birth in seconds
 
     # age death
     fixed_death_rate = 0.0 / FrameworkSettings.hz  # death chance per frame
     age_deterioration = 0.0002 /FrameworkSettings.hz  # death chance per frame scaling in response to age
+        # let sudden death occur in response to energy: scale ** (-0.1*x)
+        # scale controls how quickly sudden death rate drops in response to higher energy: higher scale means drops faster
 
     # mutation
     mut_rate = 0.5

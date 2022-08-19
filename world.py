@@ -4,6 +4,7 @@
 import random
 import Box2D as b2d
 from datetime import datetime
+from math import sqrt
 
 from custom_framework import CustomFramework as Framework, main
 from podd import Podd, generate_brain_genomes
@@ -23,7 +24,7 @@ sample_brains = generate_brain_genomes(WS.init_podds)
 test_genomes = []
 for _ in range(WS.init_podds):
     # test_genomes.append({"size":1, "strength":1, "birth_energy":120, "brain":random.choice(sample_brains)})
-    test_genomes.append({"size":1, "strength":1, "birth_energy":45, "brain":{}})
+    test_genomes.append({"size":1, "strength":1, "birth_energy":50, "brain":{}})
 
 class SimWorld(Framework):
     name = "Simulation world"
@@ -77,7 +78,7 @@ class SimWorld(Framework):
             f.write(f"time{SEP}population{SEP}total_food{SEP}avg_energy{SEP}avg_size{SEP}avg_strength\n")
         self.censusfile = "census.csv"
         with open(self.censusfile, "w") as f:
-            f.write(f"id{SEP}parent{SEP}genome")
+            f.write(f"id{SEP}parent{SEP}genome\n")
 
         # test
         for genome in test_genomes:
@@ -143,7 +144,8 @@ class SimWorld(Framework):
             self.renderer.DrawSolidCircle(self.renderer.to_screen(p), 0.25, (0, 0), b2d.b2Color((0, 1.0, 0)))
 
     def add_podd(self, genome, position=(0, 0), parent=None):
-        scale = genome["size"]
+        scale = sqrt(genome["size"])
+        print(scale)
         shape = b2d.b2PolygonShape(vertices=[(0, 0), (-scale, -scale), (scale, -scale)])
         body = self.world.CreateDynamicBody(position=position, angle=random.random()*6.28, angularDamping=5, linearDamping=0.1)
         main_fixture = body.CreateFixture(shape=shape, density=WS.test_density, friction=0.3)
