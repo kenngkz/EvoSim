@@ -1,10 +1,9 @@
 '''
 
 '''
-
-import Box2D as b2d
 import random
-import logging
+import Box2D as b2d
+from datetime import datetime
 
 from custom_framework import CustomFramework as Framework, main
 from podd import Podd, generate_brain_genomes
@@ -34,6 +33,8 @@ class SimWorld(Framework):
     frame_counter = 0
 
     def __init__(self):
+        logger.info(f"WORLD | Start time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
         super(SimWorld, self).__init__()
         self.world.gravity = (0, 0)
 
@@ -133,7 +134,7 @@ class SimWorld(Framework):
         for p in self.food:
             hit = fixture.shape.TestPoint(transform, p)
             if hit:
-                logger.debug(f"Food hit detected: {id} - {p}")
+                logger.debug(f"WORLD | Food hit detected: {id} - {p}")
                 hits.append(p)
         return hits
 
@@ -182,7 +183,7 @@ class SimWorld(Framework):
         avg_strength = sum([podd[1].attr["strength"] for podd in self.podds.values()])/population
         with open(self.statsfile, "a") as f:
             f.write(f"{time_s}{SEP}{population}{SEP}{total_food}{SEP}{avg_net_energy}{SEP}{avg_size}{SEP}{avg_strength}\n")
-        logger.info(f"STATS : {time_s=} {population=} {total_food=} {avg_net_energy=}")
+        logger.info(f"STATS | {time_s=} {population=} {total_food=} {avg_net_energy=}")
 
 if __name__ == "__main__":
     main(SimWorld)

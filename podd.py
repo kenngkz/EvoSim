@@ -2,8 +2,8 @@
 
 '''
 
-import numpy as np
 import random
+import numpy as np
 
 from settings import PoddSettings as PS, BrainSettings as BS, FrameworkSettings as FS, WorldSettings as WS
 from utils import get_logger
@@ -60,7 +60,7 @@ class Podd:
     def step(self, obs, n_podds):
         # bookkeeping
         self.age += 1/FS.hz
-        self.min_energy += PS.age_factor * 2 * (random.random()>0.5)
+        # self.min_energy += PS.age_factor * 2 * (random.random()>0.5)
         self.energy = min(self.energy, PS.max_energy)
         self.dead = False
         self.give_birth = False
@@ -68,9 +68,9 @@ class Podd:
         obs = obs + [self.energy, *self.previous_action, random.random()-0.5, 1]
         self.previous_action = self.brain.compute(obs)
         # energy tracking
-        self.energy += WS.sunlight_energy / n_podds
-        self.energy -= PS.ec_moving * sum([action > 0 for action in self.previous_action])
-        self.energy -= PS.ec_living
+        self.energy += WS.sunlight_energy/n_podds - PS.ec_moving*sum([action>0 for action in self.previous_action]) \
+            - PS.ec_living - PS.ec_factor_brain*self.brain.complexity - PS.ec_factor_size*self.attr["size"]\
+            - PS.ec_factor_str*self.attr["size"]
         # status effects
         if self.energy <= self.min_energy:
             cause = "no_energy"
@@ -82,8 +82,8 @@ class Podd:
             cause = None
         if cause:
             self.dead = True
-            logger.info(f"DEATH : {self.id} died. Cause: {cause} Age: {self.age:02f} Children: {self.children}")
-        if self.energy >= self.birth_energy+self.min_energy and self.age >= PS.birth_age:
+            logger.info(f"DEATH | {self.id} died. Cause: {cause} Age: {self.age:02f} Children: {self.children}")
+        if self.energy >= self.birth_energy+self.min_energy:
             self.give_birth = True
             self.energy -= PS.birth_cost
 
@@ -99,7 +99,7 @@ class Podd:
                 if random.random() < PS.mut_rate:
                     new[attr] *= random.normalvariate(1, PS.mut_sd)
         if new_id:
-            logger.info(f"BIRTH : {new_id} from parent {self.id}. Genome: {self.print_genome()}")
+            logger.info(f"BIRTH | Podd {new_id} from parent {self.id}. Genome: {self.print_genome()}")
         return new
 
     def print_genome(self):
@@ -144,34 +144,49 @@ class Brain:
     def __init__(self, brain_genome, id=None):
         self.id = id
         self.genome = brain_genome
-        self.computations = {}
         self.input_nodes = [f"i{i:04}" for i in range(BS.n_inputs)]
         self.output_nodes = [f"o{i:04}" for i in range(BS.n_outputs)]
         ionodes = self.input_nodes + self.output_nodes
-        self.nodelist = {node_id:Node(node_id, self) for node_id in ionodes}
-        for node in self.nodelist.values():
-            node.nodelist = self.nodelist
+        self.nodelist = {node_id:{"connections":{}, "value":None} for node_id in ionodes}
         self.build()
-
+        self.gen_compute_stack()
+        self.complexity = len(self.nodelist) - len(self.input_nodes) - len(self.output_nodes) + 0.1 * len(brain_genome)
+        
     def build(self):
         for connection, value in self.genome.items():
             nodes = connection.split("-")
             for node_id in nodes:
                 if node_id not in self.nodelist:
-                    self.nodelist[node_id] = Node(self.new_node_id(), self, self.nodelist)
-            self.nodelist[nodes[1]].add_connection(nodes[0], value)
+                    self.nodelist[node_id] = {"connections":{}, "value":None}
+            self.nodelist[nodes[1]]["connections"][nodes[0]] = value
 
-    def compute(self, input_values):
+    def gen_compute_stack(self):
+        self.compute_stack = []
+        nodes_to_crawl = self.output_nodes.copy()
+        while len(nodes_to_crawl) > 0:
+            self.compute_stack += nodes_to_crawl
+            next_level_nodes = []
+            for node_id in nodes_to_crawl:
+                for child_id in self.nodelist[node_id]["connections"]:
+                    if child_id not in self.compute_stack:
+                        self.compute_stack.append(child_id)
+            nodes_to_crawl = next_level_nodes
+
+    def compute(self, input_values):  # len(input_values) should be = len(input_nodes)
         for i, val in enumerate(input_values):
-            self.computations["i" + str(i).zfill(len(str(BS.max_node)))] = val
+            self.nodelist[self.input_nodes[i]]["value"] = val
+        compute_stack = self.compute_stack.copy()
         try:
-            output = np.array([self.nodelist[node_id].compute() for node_id in self.output_nodes])
+            while len(compute_stack) > 0:
+                node_to_compute = self.nodelist[compute_stack.pop()]
+                if not node_to_compute["value"]:
+                    node_to_compute["value"] = activation(sum([self.nodelist[node_id]["value"] * weight for node_id, weight in node_to_compute["connections"].items() if self.nodelist[node_id]["value"]]))
+            output = [self.nodelist[node_id]["value"] for node_id in self.output_nodes]
         except Exception as e:
-            # logger.debug(f"Podd {self.id} brain died due to exception: {e}")
-            print(f"Podd {self.id} brain died due to exception: {e}\nInputs: {input_values}\nBrain_genome: {self.genome}")
-            output = []
-        self.computations = {}
-        return output
+            print(f"Error occured while running compute: {e}\nInputs: {input_values}\nBrain_genome: {self.genome}")
+        for node in self.nodelist.values():
+            node["value"] = None
+        return np.array(output)
 
     def new_node_id(self):
         if len(self.nodelist) >= BS.max_node:
