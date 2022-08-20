@@ -83,6 +83,7 @@ class PoddSettings:
     age_deterioration = 0.0002 /FrameworkSettings.hz  # death chance per frame scaling in response to age
         # let sudden death occur in response to energy: scale ** (-0.1*x)
         # scale controls how quickly sudden death rate drops in response to higher energy: higher scale means drops faster
+        # alternatively, make the death rate only kick in at lower energy levels (maybe bottom 10%) and scale within that range
 
     # mutation
     mut_rate = 0.5
