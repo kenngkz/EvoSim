@@ -52,6 +52,8 @@ class Podd:
         self.min_energy = 0
         self.age = 0  # number of seconds alive
         self.previous_action = np.array([0, 0, 0])
+        self.dead = False
+        self.give_birth = False
 
     def _parse_genome(self):
         self.attr = {"size":self.genome["size"], "strength":self.genome["strength"]}
@@ -63,7 +65,6 @@ class Podd:
         self.age += 1/FS.hz
         # self.min_energy += PS.age_factor * 2 * (random.random()>0.5)
         self.energy = min(self.energy, PS.max_energy)
-        self.dead = False
         self.give_birth = False
         # choose action
         obs = obs + [self.energy, *self.previous_action, random.random()-0.5, 1]

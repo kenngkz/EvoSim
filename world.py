@@ -20,11 +20,12 @@ MOVEDIR_RIGHT = "clockwise"
 MOVEDIRS = [MOVEDIR_FRONT, MOVEDIR_LEFT, MOVEDIR_RIGHT]
 SEP = ";"  # delimiter for csv
 
+stranded_id = None
 sample_brains = generate_brain_genomes(WS.init_podds)
 test_genomes = []
 for _ in range(WS.init_podds):
     # test_genomes.append({"size":1, "strength":1, "birth_energy":120, "brain":random.choice(sample_brains)})
-    test_genomes.append({"size":1, "strength":1, "birth_energy":50, "brain":{}})
+    test_genomes.append({"size":1, "strength":1, "birth_energy":50, "brain":{"i0005-o0000":1}})
 
 class SimWorld(Framework):
     name = "Simulation world"
@@ -111,15 +112,19 @@ class SimWorld(Framework):
                 if move:
                     self.move_obj(fixture, MOVEDIRS[i], podd.attr["strength"])
         
-        # kill dead podds and birth new podds
         for dead_podd in [podd for fixture, podd in self.podds.values() if podd.dead]:
             self.kill_podd(dead_podd.id)
         for parent_podd in [podd for fixture, podd in self.podds.values() if podd.give_birth]:
             self.birth_podd(parent_podd.id)
 
-        # update stats
-        if self.frame_counter % (10*FS.hz) == 0:  # every 10s
+        # do every 10s
+        if self.frame_counter % (10*FS.hz) == 0:
             self.update_stats()
+            for fixture, podd in self.podds.values():
+                if fixture.body.position[0] < -WS.spawn_food_box/WS.grid or fixture.body.position[0] > WS.spawn_food_box/WS.grid or \
+                   fixture.body.position[1] < -WS.spawn_food_box/WS.grid or fixture.body.position[1] > WS.spawn_food_box/WS.grid:
+                    podd.dead = True  # kill podds which are outside food_box in the next frame
+                    logger.info(f"DEATH | {podd.id} died. Cause: stranded Age: {podd.age:02f} Children: {podd.children}")
 
     def add_food(self, p=None):
         if p:
@@ -145,7 +150,6 @@ class SimWorld(Framework):
 
     def add_podd(self, genome, position=(0, 0), parent=None):
         scale = sqrt(genome["size"])
-        print(scale)
         shape = b2d.b2PolygonShape(vertices=[(0, 0), (-scale, -scale), (scale, -scale)])
         body = self.world.CreateDynamicBody(position=position, angle=random.random()*6.28, angularDamping=5, linearDamping=0.1)
         main_fixture = body.CreateFixture(shape=shape, density=WS.test_density, friction=0.3)
@@ -156,7 +160,6 @@ class SimWorld(Framework):
         return self.next_id - 1
 
     def kill_podd(self, id):
-        # logger.info(f"DEATH : {id} died. Age: {self.podds[id][1].age}. Children: {self.podds[id][1].children}")
         self.world.DestroyBody(self.podds[id][0].body)
         self.podds.pop(id, None)
 
